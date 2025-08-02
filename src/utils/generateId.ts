@@ -23,21 +23,12 @@ export function isValidUUID(uuid: string): boolean {
 
 // Função para migrar ID antigo (timestamp) para UUID
 export function migrateIdToUUID(oldId: string): string {
-  // Se já é UUID, retorna como está
+  // Se já é UUID válido, retorna como está
   if (isValidUUID(oldId)) {
     return oldId;
   }
   
-  // Se é timestamp numérico, gera novo UUID determinístico baseado no timestamp
-  if (/^\d+$/.test(oldId)) {
-    // Usar o timestamp como seed para gerar UUID determinístico
-    const timestamp = parseInt(oldId);
-    const hex = timestamp.toString(16).padStart(8, '0');
-    
-    // Gerar UUID v4 determinístico baseado no timestamp
-    return `${hex.substring(0, 8)}-${hex.substring(8, 12) || '0000'}-4${hex.substring(12, 15) || '000'}-8${hex.substring(15, 18) || '000'}-${generateUUID().substring(24)}`;
-  }
-  
-  // Para qualquer outro formato, gera novo UUID
+  // Para qualquer ID inválido (timestamp, malformado, etc.), gera novo UUID
+  // Não tentamos ser determinísticos pois isso pode gerar UUIDs inválidos
   return generateUUID();
 }

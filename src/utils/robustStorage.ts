@@ -65,6 +65,65 @@ class RobustStorage {
     }
   }
 
+  // 🧹 Limpar dados com UUIDs corrompidos
+  private cleanCorruptedData(): void {
+    console.log('🧹 Limpando dados corrompidos...');
+    
+    try {
+      // Remover localStorage corrompido
+      ['setlists', 'setlist-backup', 'setlist-history', 'setlists-session'].forEach(key => {
+        const data = localStorage.getItem(key);
+        if (data) {
+          try {
+            const parsed = JSON.parse(data);
+            const hasCorruptedIds = this.hasCorruptedUUIDs(parsed);
+            if (hasCorruptedIds) {
+              console.log(`🗑️ Removendo ${key} corrompido`);
+              localStorage.removeItem(key);
+            }
+          } catch (e) {
+            console.log(`🗑️ Removendo ${key} inválido`);
+            localStorage.removeItem(key);
+          }
+        }
+      });
+      
+      // Limpar sessionStorage também
+      sessionStorage.removeItem('setlists-session');
+      
+    } catch (error) {
+      console.error('Erro ao limpar dados corrompidos:', error);
+    }
+  }
+
+  // 🔍 Verificar se há UUIDs corrompidos nos dados
+  private hasCorruptedUUIDs(data: any): boolean {
+    if (Array.isArray(data)) {
+      return data.some(item => this.hasCorruptedUUIDs(item));
+    }
+    
+    if (data && typeof data === 'object') {
+      // Verificar se tem ID corrompido
+      if (data.id && typeof data.id === 'string') {
+        // UUID válido deve ter 36 caracteres e formato correto
+        const isValidFormat = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(data.id);
+        if (!isValidFormat) {
+          console.log(`🚨 UUID corrompido encontrado: ${data.id}`);
+          return true;
+        }
+      }
+      
+      // Verificar recursivamente
+      for (const key in data) {
+        if (this.hasCorruptedUUIDs(data[key])) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
   // 🔄 Migrar dados antigos com IDs timestamp para UUID
   private migrateDataToUUID(data: any[]): any[] {
     console.log('🔄 Migrando dados para UUID...');
@@ -106,22 +165,7 @@ class RobustStorage {
       const main = localStorage.getItem('setlists');
       if (main && this.isValidData(main)) {
         console.log('✅ Carregado do localStorage principal');
-        let data = JSON.parse(main);
-        
-        // 🔄 Migrar dados se necessário (timestamp para UUID)
-        const needsMigration = Array.isArray(data) && data.some((setlist: any) => 
-          typeof setlist.id === 'string' && /^\d+$/.test(setlist.id)
-        );
-        
-        if (needsMigration) {
-          console.log('🔄 Migrando dados para UUID...');
-          data = this.migrateDataToUUID(data);
-          // Salvar dados migrados
-          this.saveSetlists(data);
-          console.log('✅ Migração concluída!');
-        }
-        
-        return data;
+        return JSON.parse(main);
       }
 
       // 2. Tentar backup redundante
@@ -275,6 +319,58 @@ class RobustStorage {
       }
     } catch (error) {
       console.error('Erro no download automático:', error);
+    }
+  }
+
+  // 🔄 RESET COMPLETO - Limpar todos os dados corrompidos
+  resetCorruptedData(): { success: boolean; message: string } {
+    if (typeof window === 'undefined') {
+      return { success: false, message: 'Não disponível no servidor' };
+    }
+
+    try {
+      console.log('🔄 RESET: Limpando todos os dados corrompidos...');
+      
+      // Backup dos dados antes de limpar
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupKey = `reset-backup-${timestamp}`;
+      
+      // Tentar fazer backup de dados válidos
+      const main = localStorage.getItem('setlists');
+      if (main) {
+        localStorage.setItem(backupKey, main);
+        console.log(`📦 Backup criado: ${backupKey}`);
+      }
+      
+      // Limpar TODOS os dados relacionados
+      const keysToRemove = [
+        'setlists',
+        'setlist-backup', 
+        'setlist-history',
+        'setlists-session',
+        'device_id' // Regenerar device ID também
+      ];
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        console.log(`🗑️ Removido: ${key}`);
+      });
+      
+      // Limpar sessionStorage
+      sessionStorage.clear();
+      
+      console.log('✅ Reset completo realizado!');
+      return { 
+        success: true, 
+        message: `Reset completo realizado! Backup salvo como ${backupKey}. Recarregue a página.` 
+      };
+      
+    } catch (error) {
+      console.error('Erro no reset:', error);
+      return { 
+        success: false, 
+        message: `Erro no reset: ${error instanceof Error ? error.message : 'Desconhecido'}` 
+      };
     }
   }
 

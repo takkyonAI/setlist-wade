@@ -223,6 +223,25 @@ export function SimpleHomePage() {
               <Plus className="mr-2 h-4 w-4" />
               Importar Backup
             </Button>
+            
+            {/* Botão de emergência para reset UUID corrompido */}
+            <Button 
+              onClick={() => {
+                const result = robustStorage.resetCorruptedData();
+                alert(result.message);
+                if (result.success) {
+                  window.location.reload();
+                }
+              }}
+              variant="outline"
+              size="sm"
+              style={{
+                borderColor: 'red',
+                color: 'red'
+              }}
+            >
+              🔄 Reset UUID
+            </Button>
           </div>
           
           {/* Componente de Sincronização Online */}
