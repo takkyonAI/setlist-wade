@@ -45,7 +45,7 @@ interface Setlist {
 }
 
 // Função para converter dados do banco para formato local
-function databaseToSetlist(dbSetlist: any, dbMusics: any[]): Setlist {
+function databaseToSetlist(dbSetlist: { id: string; name: string; description?: string; created_at: string; updated_at: string }, dbMusics: { id: string; title: string; artist: string; original_key: string; current_key: string; lyrics: any[]; cifra_club_url?: string; created_at: string; updated_at: string; position: number }[]): Setlist {
   return {
     id: dbSetlist.id,
     name: dbSetlist.name,
@@ -62,7 +62,7 @@ function databaseToSetlist(dbSetlist: any, dbMusics: any[]): Setlist {
       createdAt: new Date(dbMusic.created_at),
       updatedAt: new Date(dbMusic.updated_at),
       cifraClubUrl: dbMusic.cifra_club_url,
-    })).sort((a, b) => (a as any).position - (b as any).position),
+    })).sort((a, b) => (a as { position: number }).position - (b as { position: number }).position),
   };
 }
 
@@ -74,7 +74,7 @@ export default function SharedSetlistPage() {
   const [selectedMusic, setSelectedMusic] = useState<Music | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null); // Mantido para compatibilidade
 
   // Carregar setlist do localStorage usando o ID
   useEffect(() => {
