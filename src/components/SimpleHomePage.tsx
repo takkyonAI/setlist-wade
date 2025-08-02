@@ -95,6 +95,35 @@ export function SimpleHomePage() {
     setCurrentView('setlist');
   };
 
+  const handleDeleteSetlist = async (setlistId: string, setlistName: string) => {
+    // Confirmação antes de deletar
+    const confirmDelete = window.confirm(
+      `Tem certeza que deseja excluir o setlist "${setlistName}"?\n\nEsta ação não pode ser desfeita.`
+    );
+    
+    if (!confirmDelete) return;
+    
+    try {
+      // Filtrar o setlist a ser removido
+      const updatedSetlists = setlists.filter(setlist => setlist.id !== setlistId);
+      
+      // Salvar a lista atualizada
+      await robustStorage.saveSetlists(updatedSetlists);
+      
+      // Atualizar o estado local
+      setSetlists(updatedSetlists);
+      
+      // Fechar o setlist se era o que estava aberto
+      if (selectedSetlist?.id === setlistId) {
+        setSelectedSetlist(null);
+      }
+      
+    } catch (error) {
+      console.error('Erro ao deletar setlist:', error);
+      alert('Erro ao deletar setlist. Tente novamente.');
+    }
+  };
+
   const handleImportBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -330,14 +359,30 @@ export function SimpleHomePage() {
                 >
                   <Card className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 transition-all duration-200 hover:shadow-lg">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-lg font-bold text-foreground">
-                        {setlist.name}
-                      </CardTitle>
-                      {setlist.description && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {setlist.description}
-                        </p>
-                      )}
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg font-bold text-foreground">
+                            {setlist.name}
+                          </CardTitle>
+                          {setlist.description && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {setlist.description}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSetlist(setlist.id, setlist.name);
+                          }}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          title={`Excluir setlist "${setlist.name}"`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">

@@ -2,7 +2,7 @@
 
 import { supabase, checkConnection, type DatabaseSetlist, type DatabaseMusic } from '@/lib/supabase';
 import { robustStorage } from '@/utils/robustStorage';
-import type { Setlist, Music } from '@/types';
+import type { Setlist, Music, LyricLine } from '@/types';
 
 // Gerar ID único do dispositivo
 const getDeviceId = (): string => {
@@ -54,7 +54,7 @@ const databaseToMusic = (dbMusic: DatabaseMusic): Music => ({
   artist: dbMusic.artist,
   originalKey: dbMusic.original_key,
   currentKey: dbMusic.current_key,
-  lyrics: dbMusic.lyrics,
+  lyrics: dbMusic.lyrics as LyricLine[],
   cifraClubUrl: dbMusic.cifra_club_url,
   createdAt: new Date(dbMusic.created_at),
   updatedAt: new Date(dbMusic.updated_at),

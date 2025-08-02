@@ -34,7 +34,7 @@ export interface DatabaseMusic {
   artist: string;
   original_key: string;
   current_key: string;
-  lyrics: any; // JSON
+  lyrics: unknown; // JSON
   cifra_club_url?: string;
   created_at: string;
   updated_at: string;

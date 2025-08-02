@@ -1,6 +1,6 @@
 'use client';
 
-import { generateUUID, migrateIdToUUID } from '@/utils/generateId';
+import { migrateIdToUUID } from '@/utils/generateId';
 
 export interface BackupData {
   setlists: unknown[];
@@ -57,6 +57,9 @@ class RobustStorage {
 
       // 6. Criar download automático a cada 5 mudanças
       this.triggerAutoDownload(setlists);
+      
+      // 7. Limpar flag de reset se salvamento foi bem-sucedido
+      localStorage.removeItem('__reset_in_progress__');
 
       console.log('💾 Dados salvos com segurança múltipla!');
     } catch (error) {
@@ -81,7 +84,7 @@ class RobustStorage {
               console.log(`🗑️ Removendo ${key} corrompido`);
               localStorage.removeItem(key);
             }
-          } catch (e) {
+          } catch {
             console.log(`🗑️ Removendo ${key} inválido`);
             localStorage.removeItem(key);
           }
@@ -97,25 +100,26 @@ class RobustStorage {
   }
 
   // 🔍 Verificar se há UUIDs corrompidos nos dados
-  private hasCorruptedUUIDs(data: any): boolean {
+  private hasCorruptedUUIDs(data: unknown): boolean {
     if (Array.isArray(data)) {
       return data.some(item => this.hasCorruptedUUIDs(item));
     }
     
     if (data && typeof data === 'object') {
       // Verificar se tem ID corrompido
-      if (data.id && typeof data.id === 'string') {
+      const dataWithId = data as Record<string, unknown>;
+      if (dataWithId.id && typeof dataWithId.id === 'string') {
         // UUID válido deve ter 36 caracteres e formato correto
-        const isValidFormat = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(data.id);
+        const isValidFormat = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(dataWithId.id);
         if (!isValidFormat) {
-          console.log(`🚨 UUID corrompido encontrado: ${data.id}`);
+          console.log(`🚨 UUID corrompido encontrado: ${dataWithId.id}`);
           return true;
         }
       }
       
       // Verificar recursivamente
-      for (const key in data) {
-        if (this.hasCorruptedUUIDs(data[key])) {
+      for (const key in dataWithId) {
+        if (this.hasCorruptedUUIDs(dataWithId[key])) {
           return true;
         }
       }
@@ -125,19 +129,24 @@ class RobustStorage {
   }
 
   // 🔄 Migrar dados antigos com IDs timestamp para UUID
-  private migrateDataToUUID(data: any[]): any[] {
+  private migrateDataToUUID(data: unknown[]): unknown[] {
     console.log('🔄 Migrando dados para UUID...');
     
     return data.map(setlist => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const setlistAny = setlist as any;
       const migratedSetlist = {
-        ...setlist,
-        id: migrateIdToUUID(setlist.id),
-        musics: setlist.musics?.map((music: any) => ({
+        ...setlistAny,
+        id: migrateIdToUUID(setlistAny.id),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        musics: setlistAny.musics?.map((music: any) => ({
           ...music,
           id: migrateIdToUUID(music.id),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           lyrics: music.lyrics?.map((line: any) => ({
             ...line,
             id: migrateIdToUUID(line.id),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             chords: line.chords?.map((chord: any) => ({
               ...chord,
               id: migrateIdToUUID(chord.id)
@@ -155,6 +164,12 @@ class RobustStorage {
     // Verificar se estamos no cliente (browser)
     if (typeof window === 'undefined') {
       console.log('⚠️ localStorage não disponível no servidor');
+      return [];
+    }
+    
+    // 🛑 Verificar se está em reset - não restaurar automaticamente
+    if (localStorage.getItem('__reset_in_progress__') === 'true') {
+      console.log('🛑 Reset em progresso - não restaurando backups');
       return [];
     }
     
@@ -331,6 +346,9 @@ class RobustStorage {
     try {
       console.log('🔄 RESET: Limpando todos os dados corrompidos...');
       
+      // Marcar reset em progresso PRIMEIRO
+      localStorage.setItem('__reset_in_progress__', 'true');
+      
       // Backup dos dados antes de limpar
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupKey = `reset-backup-${timestamp}`;
@@ -485,6 +503,11 @@ class RobustStorage {
     // Fazer backup a cada 30 segundos se houver dados
     setInterval(() => {
       try {
+        // Não fazer auto-backup durante reset
+        if (localStorage.getItem('__reset_in_progress__') === 'true') {
+          return;
+        }
+        
         const setlists = localStorage.getItem('setlists');
         if (setlists) {
           const parsed = JSON.parse(setlists);
