@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     // 2. SALVAR MÚSICAS NO SUPABASE
     if (setlist.musics && setlist.musics.length > 0) {
-      const musicsData = setlist.musics.map((music: { id: string; title: string; artist: string; originalKey: string; currentKey: string; lyrics: any[]; cifraClubUrl?: string; createdAt?: string | Date }, index: number) => ({
+      const musicsData = setlist.musics.map((music: { id: string; title: string; artist: string; originalKey: string; currentKey: string; lyrics: { id: string; text: string; chords: { id: string; chord: string; position: number }[]; position: number }[]; cifraClubUrl?: string; createdAt?: string | Date }, index: number) => ({
         id: music.id,
         setlist_id: setlist.id,
         title: music.title,

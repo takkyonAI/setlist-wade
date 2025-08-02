@@ -45,7 +45,7 @@ interface Setlist {
 }
 
 // Função para converter dados do banco para formato local
-function databaseToSetlist(dbSetlist: { id: string; name: string; description?: string; created_at: string; updated_at: string }, dbMusics: { id: string; title: string; artist: string; original_key: string; current_key: string; lyrics: any[]; cifra_club_url?: string; created_at: string; updated_at: string; position: number }[]): Setlist {
+function databaseToSetlist(dbSetlist: { id: string; name: string; description?: string; created_at: string; updated_at: string }, dbMusics: { id: string; title: string; artist: string; original_key: string; current_key: string; lyrics: { id: string; text: string; chords: { id: string; chord: string; position: number }[]; position: number }[]; cifra_club_url?: string; created_at: string; updated_at: string; position: number }[]): Setlist {
   return {
     id: dbSetlist.id,
     name: dbSetlist.name,
