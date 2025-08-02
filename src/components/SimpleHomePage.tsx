@@ -655,6 +655,7 @@ function SimpleSetlistEditor({ setlist: initialSetlist, onBack }: SimpleSetlistE
       console.log('📡 Response status:', response.status);
       const data = await response.json();
       console.log('📦 Response data:', data);
+      console.log('🔥 API v2.0 - Permanent URLs ACTIVE');
 
       if (response.ok) {
         const shareUrl = data.shareUrl;

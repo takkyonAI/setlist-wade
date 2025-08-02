@@ -72,6 +72,7 @@ export function MobileView() {
       console.log('📱 Mobile: Response status:', response.status);
       const data = await response.json();
       console.log('📱 Mobile: Response data:', data);
+      console.log('🔥 Mobile API v2.0 - Permanent URLs ACTIVE');
 
       if (response.ok) {
         const shareUrl = data.shareUrl;
