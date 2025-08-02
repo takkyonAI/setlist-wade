@@ -663,16 +663,24 @@ function SimpleSetlistEditor({ setlist: initialSetlist, onBack }: SimpleSetlistE
         if (navigator.share) {
           // Usar Web Share API se disponível (mobile)
           console.log('📱 Usando Web Share API');
-          await navigator.share({
-            title: `Setlist: ${setlist.name}`,
-            text: `Confira este setlist com ${setlist.musics.length} músicas`,
-            url: shareUrl,
-          });
+          try {
+            await navigator.share({
+              title: `Setlist: ${setlist.name}`,
+              text: `Confira este setlist com ${setlist.musics.length} músicas`,
+              url: shareUrl,
+            });
+            console.log('✅ Compartilhamento concluído via Web Share API');
+          } catch (shareError) {
+            console.error('❌ Erro no Web Share API:', shareError);
+            // Fallback para clipboard se Web Share falhar
+            await navigator.clipboard.writeText(shareUrl);
+            alert(`✅ Link copiado!\nURL única: ${shareUrl}`);
+          }
         } else {
           // Fallback: copiar para clipboard
           console.log('📋 Copiando para clipboard');
           await navigator.clipboard.writeText(shareUrl);
-          alert(`✅ Link de compartilhamento copiado!\n\nO link expira em 7 dias.\n\n${shareUrl}`);
+          alert(`✅ Link de compartilhamento copiado!\n\nURL única: ${shareUrl}`);
         }
       } else {
         throw new Error(data.error || 'Erro ao criar link');

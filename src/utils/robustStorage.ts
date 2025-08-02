@@ -276,9 +276,17 @@ class RobustStorage {
 
       request.onsuccess = (event: Event) => {
         const db = (event.target as IDBOpenDBRequest).result;
-        const transaction = db.transaction(['backups'], 'readwrite');
-        const store = transaction.objectStore('backups');
-        store.put(backupData);
+        try {
+          if (db.objectStoreNames.contains('backups')) {
+            const transaction = db.transaction(['backups'], 'readwrite');
+            const store = transaction.objectStore('backups');
+            store.put(backupData);
+          } else {
+            console.warn('IndexedDB: Object store "backups" não encontrada');
+          }
+        } catch (error) {
+          console.error('IndexedDB: Erro ao salvar:', error);
+        }
       };
     } catch (error) {
       console.error('Erro ao salvar no IndexedDB:', error);
@@ -297,20 +305,32 @@ class RobustStorage {
         
         request.onsuccess = (event: Event) => {
           const db = (event.target as IDBOpenDBRequest).result;
-          const transaction = db.transaction(['backups'], 'readonly');
-          const store = transaction.objectStore('backups');
-          const getAllRequest = store.getAll();
-          
-          getAllRequest.onsuccess = () => {
-            const backups = getAllRequest.result;
-            if (backups && backups.length > 0) {
-              // Retornar backup mais recente
-              backups.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-              resolve(backups[0].setlists);
+          try {
+            if (db.objectStoreNames.contains('backups')) {
+              const transaction = db.transaction(['backups'], 'readonly');
+              const store = transaction.objectStore('backups');
+              const getAllRequest = store.getAll();
+              
+              getAllRequest.onsuccess = () => {
+                const backups = getAllRequest.result;
+                if (backups && backups.length > 0) {
+                  // Retornar backup mais recente
+                  backups.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+                  resolve(backups[0].setlists);
+                } else {
+                  resolve(null);
+                }
+              };
+              
+              getAllRequest.onerror = () => resolve(null);
             } else {
+              console.warn('IndexedDB: Object store "backups" não encontrada para leitura');
               resolve(null);
             }
-          };
+          } catch (error) {
+            console.error('IndexedDB: Erro ao ler:', error);
+            resolve(null);
+          }
         };
 
         request.onerror = () => resolve(null);
