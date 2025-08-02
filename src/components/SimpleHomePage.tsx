@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Music, Calendar, ArrowLeft, FileDown, Loader2, Edit3, Link as LinkIcon, Trash2, Eye } from 'lucide-react';
+import { Plus, Music, Calendar, ArrowLeft, FileDown, Loader2, Edit3, Link as LinkIcon, Trash2, Eye, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -550,6 +550,7 @@ function SimpleSetlistEditor({ setlist: initialSetlist, onBack }: SimpleSetlistE
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
   const [editingTitleValue, setEditingTitleValue] = useState('');
   const [viewMode, setViewMode] = useState<'edit' | 'view'>('view');
+  const [isSharing, setIsSharing] = useState(false);
 
   const handleMusicAdded = (music: Music) => {
     const updatedSetlist = {
@@ -638,6 +639,45 @@ function SimpleSetlistEditor({ setlist: initialSetlist, onBack }: SimpleSetlistE
     robustStorage.saveSetlists(updatedSetlists);
   };
 
+  const handleShareSetlist = async () => {
+    setIsSharing(true);
+    try {
+      const response = await fetch('/api/share-setlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ setlist }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        const shareUrl = data.shareUrl;
+        
+        if (navigator.share) {
+          // Usar Web Share API se disponível (mobile)
+          await navigator.share({
+            title: `Setlist: ${setlist.name}`,
+            text: `Confira este setlist com ${setlist.musics.length} músicas`,
+            url: shareUrl,
+          });
+        } else {
+          // Fallback: copiar para clipboard
+          await navigator.clipboard.writeText(shareUrl);
+          alert(`✅ Link de compartilhamento copiado!\n\nO link expira em 7 dias.\n\n${shareUrl}`);
+        }
+      } else {
+        throw new Error(data.error || 'Erro ao criar link');
+      }
+    } catch (error) {
+      console.error('Erro ao compartilhar setlist:', error);
+      alert('❌ Erro ao criar link de compartilhamento. Tente novamente.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   // Se estiver editando uma música
   if (currentView === 'music' && selectedMusic) {
     return (
@@ -681,6 +721,24 @@ function SimpleSetlistEditor({ setlist: initialSetlist, onBack }: SimpleSetlistE
           </div>
           
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleShareSetlist}
+              disabled={isSharing || setlist.musics.length === 0}
+              title="Compartilhar setlist"
+              style={{
+                borderColor: 'oklch(0.8 0.25 127)',
+                color: 'oklch(0.8 0.25 127)'
+              }}
+            >
+              {isSharing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Share2 className="h-4 w-4 mr-2" />
+              )}
+              Compartilhar
+            </Button>
             <Button 
               variant="outline" 
               size="sm"

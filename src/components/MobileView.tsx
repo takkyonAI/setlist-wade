@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft, Music as MusicIcon } from 'lucide-react';
+import { ArrowLeft, Music as MusicIcon, Share2, Loader2 } from 'lucide-react';
 import { SimpleMusicEditor } from '@/components/SimpleMusicEditor';
 import { robustStorage } from '@/utils/robustStorage';
 import type { Music, Setlist } from '@/types';
@@ -12,12 +12,88 @@ export function MobileView() {
   const [setlists, setSetlists] = useState<Setlist[]>([]);
   const [selectedMusic, setSelectedMusic] = useState<Music | null>(null);
   const [selectedSetlistId, setSelectedSetlistId] = useState<string | null>(null);
+  const [selectedSetlistForShare, setSelectedSetlistForShare] = useState<Setlist | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
 
-  // Carregar setlists do storage
+  // Carregar setlists do storage e configurar auto-sync
   useEffect(() => {
-    const loadedSetlists = robustStorage.loadSetlists() as Setlist[];
-    setSetlists(loadedSetlists);
-  }, []);
+    const loadSetlists = () => {
+      const loadedSetlists = robustStorage.loadSetlists() as Setlist[];
+      setSetlists(loadedSetlists);
+      console.log('📱 Mobile: Carregados', loadedSetlists.length, 'setlists');
+    };
+
+    // Carregar inicialmente
+    loadSetlists();
+
+    // Configurar listener para mudanças no localStorage
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'setlists' || e.key === 'setlist-backup') {
+        console.log('📱 Mobile: Detectada mudança no storage, recarregando...');
+        loadSetlists();
+      }
+    };
+
+    // Configurar recheck periódico para sincronização
+    const syncInterval = setInterval(() => {
+      const currentSetlists = robustStorage.loadSetlists() as Setlist[];
+      if (JSON.stringify(currentSetlists) !== JSON.stringify(setlists)) {
+        console.log('📱 Mobile: Detectada mudança, sincronizando...');
+        setSetlists(currentSetlists);
+      }
+    }, 2000); // Check a cada 2 segundos
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('focus', loadSetlists); // Recarregar quando voltar à aba
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', loadSetlists);
+      clearInterval(syncInterval);
+    };
+  }, [setlists]);
+
+  const handleShareSetlist = async (setlist: Setlist) => {
+    setSelectedSetlistForShare(setlist);
+    setIsSharing(true);
+    
+    try {
+      const response = await fetch('/api/share-setlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ setlist }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        const shareUrl = data.shareUrl;
+        
+        if (navigator.share) {
+          // Usar Web Share API se disponível (mobile)
+          await navigator.share({
+            title: `Setlist: ${setlist.name}`,
+            text: `Confira este setlist com ${setlist.musics.length} músicas`,
+            url: shareUrl,
+          });
+        } else {
+          // Fallback: copiar para clipboard
+          await navigator.clipboard.writeText(shareUrl);
+          alert(`✅ Link de compartilhamento copiado!\n\nO link expira em 7 dias.`);
+        }
+      } else {
+        throw new Error(data.error || 'Erro ao criar link');
+      }
+    } catch (error) {
+      console.error('Erro ao compartilhar setlist:', error);
+      alert('❌ Erro ao criar link de compartilhamento. Tente novamente.');
+    } finally {
+      setIsSharing(false);
+      setSelectedSetlistForShare(null);
+    }
+  };
 
   // Coletar todas as músicas de todos os setlists
   const allMusics: (Music & { setlistName: string })[] = [];
@@ -132,6 +208,28 @@ export function MobileView() {
                       <div className="text-xs text-gray-500">
                         Toque para abrir
                       </div>
+                      {(() => {
+                        const musicSetlist = setlists.find(s => s.musics.some(m => m.id === music.id));
+                        return musicSetlist && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleShareSetlist(musicSetlist);
+                            }}
+                            disabled={isSharing && selectedSetlistForShare?.id === musicSetlist.id}
+                            className="text-gray-400 hover:text-green-400 p-1 h-6 w-6 mt-1"
+                            title={`Compartilhar setlist "${musicSetlist.name}"`}
+                          >
+                            {isSharing && selectedSetlistForShare?.id === musicSetlist.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Share2 className="h-3 w-3" />
+                            )}
+                          </Button>
+                        );
+                      })()}
                     </div>
                   </div>
                 </CardContent>

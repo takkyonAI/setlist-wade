@@ -1,21 +1,8 @@
 // Função para gerar UUID v4 válido (funciona no servidor e cliente)
 export function generateUUID(): string {
-  // No servidor Node.js, usar crypto.randomUUID se disponível
-  if (typeof window === 'undefined') {
-    try {
-      // Node.js 15.6+ tem crypto.randomUUID
-      const crypto = require('crypto');
-      if (crypto.randomUUID) {
-        return crypto.randomUUID();
-      }
-    } catch (error) {
-      // Fallback se crypto não estiver disponível
-    }
-  } else {
-    // No cliente (browser)
-    if ('crypto' in window && 'randomUUID' in window.crypto) {
-      return window.crypto.randomUUID();
-    }
+  // No cliente (browser)
+  if (typeof window !== 'undefined' && 'crypto' in window && 'randomUUID' in window.crypto) {
+    return window.crypto.randomUUID();
   }
   
   // Fallback para geração manual de UUID v4 (servidor e cliente)
