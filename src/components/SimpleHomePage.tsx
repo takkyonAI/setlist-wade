@@ -212,6 +212,9 @@ export function SimpleHomePage() {
           <p className="text-muted-foreground text-lg">
             Organize suas setlists com letras e cifras
           </p>
+          <div className="mt-4 p-2 bg-green-600 text-white rounded-lg text-sm font-bold">
+            🚀 BUILD v2.1 - PERMANENT URLs ACTIVE - {new Date().toISOString()}
+          </div>
         </motion.div>
 
         {/* Create Button & Backup Controls */}

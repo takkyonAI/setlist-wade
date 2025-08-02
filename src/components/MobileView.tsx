@@ -168,11 +168,16 @@ export function MobileView() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white">
       {/* Header compacto */}
       <div className="sticky top-0 z-50 bg-black/90 backdrop-blur-sm border-b border-gray-800 p-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mb-2">
           <MusicIcon className="h-5 w-5 text-green-400" />
           <h1 className="text-lg font-bold">
             Setlist Wade
           </h1>
+        </div>
+        <div className="text-xs bg-green-600 p-1 rounded text-center font-bold">
+          🚀 BUILD v2.1 - PERMANENT URLs ACTIVE
+        </div>
+        <div className="flex items-center gap-2 mt-2">
           <span className="text-sm text-gray-400 ml-auto">
             {allMusics.length} músicas
           </span>
