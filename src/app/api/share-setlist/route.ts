@@ -1,83 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Interface para o setlist compartilhado
-interface SharedSetlist {
-  id: string;
-  data: unknown;
-  createdAt: string;
-  expiresAt: string;
-}
-
-// Armazenamento temporário usando file system para persistir dados
-// Em produção real seria banco de dados
-const sharedSetlists = new Map<string, SharedSetlist>();
-
-// Função para salvar dados em formato persistente (simulado)
-function saveSharedData() {
-  try {
-    // Em ambiente de desenvolvimento, tentar usar sistema de arquivos simulado
-    // Em produção, os dados serão mantidos em memória por sessão
-    console.log(`💾 Dados compartilhados salvos: ${sharedSetlists.size} setlists`);
-  } catch (error) {
-    console.error('Erro ao salvar dados compartilhados:', error);
-  }
-}
-
-// Função para gerar ID único curto
-function generateShortId(): string {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
-
-// Função para limpar setlists expirados
-function cleanExpiredSetlists() {
-  const now = new Date().toISOString();
-  for (const [id, setlist] of sharedSetlists.entries()) {
-    if (setlist.expiresAt < now) {
-      sharedSetlists.delete(id);
-    }
-  }
-}
+// Sistema simplificado: usar o ID do setlist diretamente como URL
+// URLs permanentes baseadas no próprio ID do setlist - nunca expiram
 
 export async function POST(request: NextRequest) {
   try {
     const { setlist } = await request.json();
 
-    if (!setlist) {
+    if (!setlist || !setlist.id) {
       return NextResponse.json(
-        { error: 'Setlist é obrigatório' },
+        { error: 'Setlist com ID é obrigatório' },
         { status: 400 }
       );
     }
 
-    // Limpar setlists expirados
-    cleanExpiredSetlists();
+    // Usar o ID do setlist diretamente como shareId (URL fixa e permanente)
+    const shareId = setlist.id;
 
-    // Gerar ID único curto
-    let shareId = generateShortId();
-    while (sharedSetlists.has(shareId)) {
-      shareId = generateShortId();
-    }
-
-    // Criar setlist compartilhado (válido por 7 dias)
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    const sharedSetlist: SharedSetlist = {
-      id: shareId,
-      data: setlist,
-      createdAt: new Date().toISOString(),
-      expiresAt: expiresAt.toISOString(),
-    };
-
-    sharedSetlists.set(shareId, sharedSetlist);
-    saveSharedData();
-
-    console.log(`📤 Setlist compartilhado criado: ${shareId}`);
+    console.log(`📤 URL permanente criada para setlist: ${setlist.name} (${shareId})`);
 
     return NextResponse.json({
       shareId,
       shareUrl: `${request.nextUrl.origin}/shared/${shareId}`,
-      expiresAt: expiresAt.toISOString(),
+      permanent: true, // Indicar que é URL permanente
     });
 
   } catch (error) {
@@ -92,37 +37,27 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const shareId = url.searchParams.get('id');
+    const setlistId = url.searchParams.get('id');
 
-    if (!shareId) {
+    if (!setlistId) {
       return NextResponse.json(
-        { error: 'ID de compartilhamento é obrigatório' },
+        { error: 'ID do setlist é obrigatório' },
         { status: 400 }
       );
     }
 
-    // Limpar setlists expirados
-    cleanExpiredSetlists();
+    console.log(`📥 Buscando setlist com ID: ${setlistId}`);
 
-    const sharedSetlist = sharedSetlists.get(shareId);
-
-    if (!sharedSetlist) {
-      return NextResponse.json(
-        { error: 'Setlist não encontrado ou expirado' },
-        { status: 404 }
-      );
-    }
-
-    console.log(`📥 Setlist compartilhado acessado: ${shareId}`);
-
+    // O ID é o próprio ID do setlist - a página irá carregar os dados do localStorage
+    // ou solicitar que o usuário acesse pelo desktop primeiro
     return NextResponse.json({
-      setlist: sharedSetlist.data,
-      createdAt: sharedSetlist.createdAt,
-      expiresAt: sharedSetlist.expiresAt,
+      setlistId,
+      message: 'Use o ID do setlist para carregar os dados do storage local',
+      permanent: true,
     });
 
   } catch (error) {
-    console.error('Erro ao buscar setlist compartilhado:', error);
+    console.error('Erro ao processar solicitação:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }

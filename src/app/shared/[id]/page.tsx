@@ -53,35 +53,46 @@ export default function SharedSetlistPage() {
   const [error, setError] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
-  // Carregar setlist compartilhado
+  // Carregar setlist do localStorage usando o ID
   useEffect(() => {
     const loadSharedSetlist = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/share-setlist?id=${shareId}`);
-        const data = await response.json();
+        console.log('🔍 Procurando setlist com ID:', shareId);
 
-        if (response.ok) {
-          // Converter strings de data para objetos Date
+        // Carregar todos os setlists do localStorage
+        const stored = localStorage.getItem('setlists');
+        const allSetlists = stored ? JSON.parse(stored) : [];
+        
+        console.log('📦 Setlists encontrados no storage:', allSetlists.length);
+
+        // Procurar o setlist específico pelo ID
+        const foundSetlist = allSetlists.find((s: any) => s.id === shareId);
+
+        if (foundSetlist) {
+          console.log('✅ Setlist encontrado:', foundSetlist.name);
+          
+          // Converter strings de data para objetos Date se necessário
           const setlistData = {
-            ...data.setlist,
-            createdAt: new Date(data.setlist.createdAt),
-            updatedAt: new Date(data.setlist.updatedAt),
-            musics: data.setlist.musics.map((music: Music) => ({
+            ...foundSetlist,
+            createdAt: new Date(foundSetlist.createdAt),
+            updatedAt: new Date(foundSetlist.updatedAt),
+            musics: foundSetlist.musics?.map((music: any) => ({
               ...music,
               createdAt: new Date(music.createdAt),
               updatedAt: new Date(music.updatedAt),
-            })),
+            })) || [],
           };
           
           setSetlist(setlistData);
-          setExpiresAt(data.expiresAt);
+          setExpiresAt(null); // URLs permanentes, sem expiração
         } else {
-          setError(data.error || 'Erro ao carregar setlist');
+          console.log('❌ Setlist não encontrado no storage local');
+          setError('Setlist não encontrado. Pode ser que você precise acessar o desktop primeiro para sincronizar os dados.');
         }
       } catch (err) {
-        setError('Erro de conexão');
-        console.error('Erro ao carregar setlist compartilhado:', err);
+        console.error('❌ Erro ao carregar setlist:', err);
+        setError('Erro ao carregar setlist do storage local');
       } finally {
         setLoading(false);
       }
@@ -177,17 +188,31 @@ export default function SharedSetlistPage() {
           <div className="text-6xl mb-4">😕</div>
           <h1 className="text-2xl font-bold mb-2">Setlist não encontrado</h1>
           <p className="text-gray-400 mb-4">{error}</p>
-          <p className="text-sm text-gray-500">
-            O link pode ter expirado ou ser inválido.
-          </p>
-          <Button 
-            onClick={() => window.location.href = '/'}
-            className="mt-4"
-            variant="outline"
-          >
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Ir para Setlist Wade
-          </Button>
+          <div className="text-sm text-gray-500 mb-4">
+            <p className="mb-2">Este setlist pode estar disponível apenas no dispositivo onde foi criado.</p>
+            <p>Para visualizar:</p>
+            <ol className="text-left list-decimal list-inside mt-2 space-y-1">
+              <li>Acesse no mesmo dispositivo onde foi criado</li>
+              <li>Ou peça para quem criou exportar/sincronizar</li>
+            </ol>
+          </div>
+          <div className="space-y-2">
+            <Button 
+              onClick={() => window.location.reload()}
+              className="w-full"
+              variant="outline"
+            >
+              🔄 Tentar novamente
+            </Button>
+            <Button 
+              onClick={() => window.location.href = '/'}
+              className="w-full"
+              variant="outline"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Ir para Setlist Wade
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -230,11 +255,9 @@ export default function SharedSetlistPage() {
             </div>
           </div>
 
-          {expiresAt && (
-            <p className="text-xs text-yellow-400 mt-2">
-              ⏰ Este link expira em {formatDate(new Date(expiresAt))}
-            </p>
-          )}
+          <p className="text-xs text-green-400 mt-2">
+            🔗 Link permanente - nunca expira
+          </p>
         </motion.div>
 
         {/* Botão de compartilhar */}

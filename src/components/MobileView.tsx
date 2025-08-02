@@ -91,13 +91,13 @@ export function MobileView() {
             console.error('❌ Mobile: Erro no Web Share API:', shareError);
             // Fallback para clipboard se Web Share falhar
             await navigator.clipboard.writeText(shareUrl);
-            alert(`✅ Link copiado!\nURL única: ${shareUrl}`);
+            alert(`✅ Link copiado!\n\n🔗 URL fixa (nunca expira):\n${shareUrl}`);
           }
         } else {
           // Fallback: copiar para clipboard
           console.log('📱 Mobile: Copiando para clipboard');
           await navigator.clipboard.writeText(shareUrl);
-          alert(`✅ Link de compartilhamento copiado!\n\nURL única: ${shareUrl}`);
+          alert(`✅ Link permanente copiado!\n\n🔗 URL fixa (nunca expira):\n${shareUrl}`);
         }
       } else {
         throw new Error(data.error || 'Erro ao criar link');
