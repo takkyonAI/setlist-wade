@@ -62,7 +62,7 @@ function databaseToSetlist(dbSetlist: { id: string; name: string; description?: 
       createdAt: new Date(dbMusic.created_at),
       updatedAt: new Date(dbMusic.updated_at),
       cifraClubUrl: dbMusic.cifra_club_url,
-    })).sort((a, b) => (a as { position: number }).position - (b as { position: number }).position),
+    })),
   };
 }
 
