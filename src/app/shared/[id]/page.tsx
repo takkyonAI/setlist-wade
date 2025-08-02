@@ -66,8 +66,8 @@ export default function SharedSetlistPage() {
         
         console.log('📦 Setlists encontrados no storage:', allSetlists.length);
 
-        // Procurar o setlist específico pelo ID
-        const foundSetlist = allSetlists.find((s: any) => s.id === shareId);
+                     // Procurar o setlist específico pelo ID
+             const foundSetlist = allSetlists.find((s: Setlist) => s.id === shareId);
 
         if (foundSetlist) {
           console.log('✅ Setlist encontrado:', foundSetlist.name);
@@ -77,7 +77,7 @@ export default function SharedSetlistPage() {
             ...foundSetlist,
             createdAt: new Date(foundSetlist.createdAt),
             updatedAt: new Date(foundSetlist.updatedAt),
-            musics: foundSetlist.musics?.map((music: any) => ({
+                             musics: foundSetlist.musics?.map((music: Music) => ({
               ...music,
               createdAt: new Date(music.createdAt),
               updatedAt: new Date(music.updatedAt),
