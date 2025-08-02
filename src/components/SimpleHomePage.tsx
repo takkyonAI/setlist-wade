@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SimpleMusicEditor } from '@/components/SimpleMusicEditor';
 import { MobileView } from '@/components/MobileView';
+import { SyncButton } from '@/components/SyncButton';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { robustStorage } from '@/utils/robustStorage';
 
@@ -223,6 +224,13 @@ export function SimpleHomePage() {
               Importar Backup
             </Button>
           </div>
+          
+          {/* Componente de Sincronização Online */}
+          <SyncButton onSyncComplete={() => {
+            const updatedSetlists = robustStorage.loadSetlists() as Setlist[];
+            setSetlists(updatedSetlists);
+          }} />
+          
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button size="lg" style={{

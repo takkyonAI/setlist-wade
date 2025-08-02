@@ -1,6 +1,6 @@
 {
   "name": "setlist-wade",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -20,6 +20,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-switch": "^1.2.5",
     "@radix-ui/react-tabs": "^1.1.12",
+    "@supabase/supabase-js": "^2.53.0",
     "axios": "^1.11.0",
     "cheerio": "^1.1.2",
     "chord-transposer": "^3.0.9",
