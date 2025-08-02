@@ -78,6 +78,36 @@ export class SyncService {
     return this.isOnline;
   }
 
+  // Diagnóstico detalhado
+  async diagnose(): Promise<{ status: string; message: string }> {
+    try {
+      const { data, error } = await supabase.from('setlists').select('count').limit(1);
+      
+      if (error) {
+        if (error.message.includes('relation "setlists" does not exist')) {
+          return {
+            status: 'tables_missing',
+            message: 'Tabelas não existem. Execute o SQL no Supabase primeiro.'
+          };
+        }
+        return {
+          status: 'connection_error',
+          message: `Erro de conexão: ${error.message}`
+        };
+      }
+      
+      return {
+        status: 'online',
+        message: 'Conexão funcionando perfeitamente!'
+      };
+    } catch (error) {
+      return {
+        status: 'network_error',
+        message: `Erro de rede: ${error instanceof Error ? error.message : 'Desconhecido'}`
+      };
+    }
+  }
+
   // Sincronizar dados locais para o banco
   async syncUp(): Promise<{ success: boolean; message: string }> {
     if (this.syncInProgress) {
@@ -154,7 +184,21 @@ export class SyncService {
 
     } catch (error) {
       console.error('Erro na sincronização UP:', error);
-      return { success: false, message: `Erro: ${error instanceof Error ? error.message : 'Desconhecido'}` };
+      
+      // Diagnóstico automático em caso de erro
+      const diagnostic = await this.diagnose();
+      
+      if (diagnostic.status === 'tables_missing') {
+        return { 
+          success: false, 
+          message: '❌ Tabelas não existem no Supabase. Execute o SQL primeiro: https://supabase.com/dashboard/project/pbqiumrsxnunnjcfnbzx' 
+        };
+      }
+      
+      return { 
+        success: false, 
+        message: `❌ ${diagnostic.message}` 
+      };
     } finally {
       this.syncInProgress = false;
     }
