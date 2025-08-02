@@ -1,0 +1,379 @@
+'use client';
+
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
+  ArrowLeft,
+  Music,
+  Plus,
+  Edit,
+  Trash2,
+  GripVertical,
+  Play,
+  FileDown,
+  Settings,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { useSetlist } from '@/contexts/SetlistContext';
+import { SearchMusic } from '@/components/SearchMusic';
+import { MusicEditor } from '@/components/MusicEditor';
+import { exportSetlistToPDF } from '@/utils/pdfExporter';
+import { Setlist, Music as MusicType } from '../types';
+
+interface SetlistEditorProps {
+  setlist: Setlist;
+  onBack: () => void;
+}
+
+export function SetlistEditor({ setlist: initialSetlist, onBack }: SetlistEditorProps) {
+  const { state, updateSetlist, deleteMusicFromSetlist, reorderMusicsInSetlist } = useSetlist();
+  const [currentView, setCurrentView] = useState<'list' | 'music'>('list');
+  const [selectedMusic, setSelectedMusic] = useState<MusicType | null>(null);
+  const [isEditingSetlist, setIsEditingSetlist] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: initialSetlist.name,
+    description: initialSetlist.description || '',
+  });
+
+  // Buscar setlist atualizado do estado
+  const setlist = state.setlists.find(s => s.id === initialSetlist.id) || initialSetlist;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = setlist.musics.findIndex(music => music.id === active.id);
+      const newIndex = setlist.musics.findIndex(music => music.id === over.id);
+      
+      const reorderedMusics = arrayMove(setlist.musics, oldIndex, newIndex);
+      await reorderMusicsInSetlist(setlist.id, reorderedMusics);
+    }
+  };
+
+  const handleDeleteMusic = async (musicId: string) => {
+    if (confirm('Tem certeza que deseja remover esta música do setlist?')) {
+      await deleteMusicFromSetlist(setlist.id, musicId);
+    }
+  };
+
+  const handleEditMusic = (music: MusicType) => {
+    setSelectedMusic(music);
+    setCurrentView('music');
+  };
+
+  const handleSaveSetlistInfo = async () => {
+    const updatedSetlist = {
+      ...setlist,
+      name: editForm.name,
+      description: editForm.description,
+      updatedAt: new Date(),
+    };
+    await updateSetlist(updatedSetlist);
+    setIsEditingSetlist(false);
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      await exportSetlistToPDF(setlist, {
+        includeChords: true,
+        fontSize: 12,
+        pageMargin: 20,
+        showPageNumbers: true,
+        headerText: `Setlist Wade - ${setlist.name}`,
+        footerText: `Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+      });
+    } catch (error) {
+      console.error('Erro ao exportar PDF:', error);
+      alert('Erro ao exportar PDF. Tente novamente.');
+    }
+  };
+
+  if (currentView === 'music' && selectedMusic) {
+    return (
+      <MusicEditor
+        music={selectedMusic}
+        setlistId={setlist.id}
+        onBack={() => {
+          setCurrentView('list');
+          setSelectedMusic(null);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background p-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between mb-6"
+        >
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={onBack}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold neon-text">{setlist.name}</h1>
+              {setlist.description && (
+                <p className="text-muted-foreground">{setlist.description}</p>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Dialog open={isEditingSetlist} onOpenChange={setIsEditingSetlist}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Configurações
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Editar Setlist</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="setlist-name">Nome</Label>
+                    <Input
+                      id="setlist-name"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="setlist-description">Descrição</Label>
+                    <Textarea
+                      id="setlist-description"
+                      value={editForm.description}
+                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                      rows={3}
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-4">
+                    <Button onClick={handleSaveSetlistInfo} className="flex-1">
+                      Salvar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditingSetlist(false)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            
+            <Button variant="outline" size="sm" onClick={handleExportPDF}>
+              <FileDown className="h-4 w-4 mr-2" />
+              Exportar PDF
+            </Button>
+          </div>
+        </motion.div>
+
+        {/* Info cards */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"
+        >
+          <Card>
+            <CardContent className="p-4 text-center">
+              <Music className="h-8 w-8 mx-auto mb-2 text-primary" />
+              <p className="text-2xl font-bold">{setlist.musics.length}</p>
+              <p className="text-sm text-muted-foreground">Músicas</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4 text-center">
+              <Play className="h-8 w-8 mx-auto mb-2 text-accent" />
+              <p className="text-2xl font-bold">~{Math.ceil(setlist.musics.length * 3.5)}min</p>
+              <p className="text-sm text-muted-foreground">Duração estimada</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4 text-center">
+              <Badge variant="outline" className="text-lg px-3 py-1">
+                {new Date(setlist.createdAt).toLocaleDateString('pt-BR')}
+              </Badge>
+              <p className="text-sm text-muted-foreground mt-1">Criado em</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Add music button */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mb-6"
+        >
+          <SearchMusic
+            setlistId={setlist.id}
+            onMusicAdded={(music) => {
+              // A música já foi adicionada pelo contexto
+              console.log('Música adicionada:', music.title);
+            }}
+          />
+        </motion.div>
+
+        {/* Music list */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          {setlist.musics.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Music className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-muted-foreground mb-2">
+                  Setlist vazio
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  Adicione músicas do CifraClub para começar a montar seu setlist
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Músicas do Setlist</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={setlist.musics.map(m => m.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-2 p-4">
+                      {setlist.musics.map((music, index) => (
+                        <SortableMusicItem
+                          key={music.id}
+                          music={music}
+                          index={index}
+                          onEdit={() => handleEditMusic(music)}
+                          onDelete={() => handleDeleteMusic(music.id)}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </CardContent>
+            </Card>
+          )}
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+interface SortableMusicItemProps {
+  music: MusicType;
+  index: number;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+function SortableMusicItem({ music, index, onEdit, onDelete }: SortableMusicItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: music.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="music-card group flex items-center gap-3 p-3 bg-card border rounded-lg"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="drag-handle"
+      >
+        <GripVertical className="h-5 w-5 text-muted-foreground" />
+      </div>
+      
+      <div className="bg-primary/10 text-primary rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
+        {index + 1}
+      </div>
+      
+      <div className="flex-1">
+        <h4 className="font-semibold">{music.title}</h4>
+        <p className="text-sm text-muted-foreground">{music.artist}</p>
+      </div>
+      
+      <div className="flex items-center gap-2">
+        <Badge variant="outline">{music.currentKey}</Badge>
+        
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+          <Button size="sm" variant="ghost" onClick={onEdit}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-destructive hover:text-destructive"
+            onClick={onDelete}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
