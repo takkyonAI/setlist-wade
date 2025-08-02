@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { Setlist, Music } from '../types';
+import { generateUUID } from '@/utils/generateId';
 
 interface SetlistState {
   setlists: Setlist[];
@@ -167,7 +168,7 @@ export function SetlistProvider({ children }: { children: React.ReactNode }) {
   // Funções helper
   const createSetlist = async (name: string, description?: string) => {
     const newSetlist: Setlist = {
-      id: Date.now().toString(),
+      id: generateUUID(),
       name,
       description,
       musics: [],

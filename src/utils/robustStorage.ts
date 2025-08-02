@@ -1,5 +1,7 @@
 'use client';
 
+import { generateUUID, migrateIdToUUID } from '@/utils/generateId';
+
 export interface BackupData {
   setlists: unknown[];
   timestamp: string;
@@ -63,6 +65,32 @@ class RobustStorage {
     }
   }
 
+  // 🔄 Migrar dados antigos com IDs timestamp para UUID
+  private migrateDataToUUID(data: any[]): any[] {
+    console.log('🔄 Migrando dados para UUID...');
+    
+    return data.map(setlist => {
+      const migratedSetlist = {
+        ...setlist,
+        id: migrateIdToUUID(setlist.id),
+        musics: setlist.musics?.map((music: any) => ({
+          ...music,
+          id: migrateIdToUUID(music.id),
+          lyrics: music.lyrics?.map((line: any) => ({
+            ...line,
+            id: migrateIdToUUID(line.id),
+            chords: line.chords?.map((chord: any) => ({
+              ...chord,
+              id: migrateIdToUUID(chord.id)
+            })) || []
+          })) || []
+        })) || []
+      };
+      
+      return migratedSetlist;
+    });
+  }
+
   // 📖 CARREGAR COM RECUPERAÇÃO AUTOMÁTICA
   loadSetlists(): unknown[] {
     // Verificar se estamos no cliente (browser)
@@ -78,7 +106,22 @@ class RobustStorage {
       const main = localStorage.getItem('setlists');
       if (main && this.isValidData(main)) {
         console.log('✅ Carregado do localStorage principal');
-        return JSON.parse(main);
+        let data = JSON.parse(main);
+        
+        // 🔄 Migrar dados se necessário (timestamp para UUID)
+        const needsMigration = Array.isArray(data) && data.some((setlist: any) => 
+          typeof setlist.id === 'string' && /^\d+$/.test(setlist.id)
+        );
+        
+        if (needsMigration) {
+          console.log('🔄 Migrando dados para UUID...');
+          data = this.migrateDataToUUID(data);
+          // Salvar dados migrados
+          this.saveSetlists(data);
+          console.log('✅ Migração concluída!');
+        }
+        
+        return data;
       }
 
       // 2. Tentar backup redundante

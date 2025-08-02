@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { generateUUID } from '@/utils/generateId';
 // Definir interfaces localmente para evitar imports quebrados
 interface Chord {
   id: string;
@@ -428,7 +429,7 @@ export async function GET(request: NextRequest) {
 
     // Criar objeto Music - SEMPRE em C mas com tom original salvo
     const music: Music = {
-      id: Date.now().toString(),
+              id: generateUUID(),
       title,
       artist: artist || 'Artista Desconhecido',
       originalKey, // Tom original da música
@@ -469,7 +470,7 @@ function generateMockMusicFromUrl(url: string): Music {
   const originalKey = ['G', 'C', 'D', 'Am', 'Em', 'F'][Math.floor(Math.random() * 6)];
   
   return {
-    id: Date.now().toString(),
+            id: generateUUID(),
     title: songName || 'Música Importada',
     artist: getArtistFromSong(songName),
     originalKey,
@@ -557,7 +558,7 @@ function generateAtraiMeuCoracaoMusic(url: string): Music {
   ];
 
   return {
-    id: Date.now().toString(),
+            id: generateUUID(),
     title: 'Atrai o Meu Coração',
     artist: 'Filhos do Homem',
     originalKey: 'D', // Tom original da música
