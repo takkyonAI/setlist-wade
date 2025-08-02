@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { SimpleMusicEditor } from '@/components/SimpleMusicEditor';
 import { ArrowLeft, Music, Calendar, Eye, Share2, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
 
 // Tipos locais (duplicados para evitar dependências)
 interface Chord {
@@ -43,6 +44,28 @@ interface Setlist {
   updatedAt: Date;
 }
 
+// Função para converter dados do banco para formato local
+function databaseToSetlist(dbSetlist: any, dbMusics: any[]): Setlist {
+  return {
+    id: dbSetlist.id,
+    name: dbSetlist.name,
+    description: dbSetlist.description,
+    createdAt: new Date(dbSetlist.created_at),
+    updatedAt: new Date(dbSetlist.updated_at),
+    musics: dbMusics.map(dbMusic => ({
+      id: dbMusic.id,
+      title: dbMusic.title,
+      artist: dbMusic.artist,
+      originalKey: dbMusic.original_key,
+      currentKey: dbMusic.current_key,
+      lyrics: dbMusic.lyrics || [],
+      createdAt: new Date(dbMusic.created_at),
+      updatedAt: new Date(dbMusic.updated_at),
+      cifraClubUrl: dbMusic.cifra_club_url,
+    })).sort((a, b) => (a as any).position - (b as any).position),
+  };
+}
+
 export default function SharedSetlistPage() {
   const params = useParams();
   const shareId = params.id as string;
@@ -60,24 +83,22 @@ export default function SharedSetlistPage() {
         setLoading(true);
         console.log('🔍 Procurando setlist com ID:', shareId);
 
-        // Carregar todos os setlists do localStorage
+        // 1. PRIMEIRO: Tentar carregar do localStorage
         const stored = localStorage.getItem('setlists');
         const allSetlists = stored ? JSON.parse(stored) : [];
         
-        console.log('📦 Setlists encontrados no storage:', allSetlists.length);
+        console.log('📦 Setlists encontrados no storage local:', allSetlists.length);
 
-                     // Procurar o setlist específico pelo ID
-             const foundSetlist = allSetlists.find((s: Setlist) => s.id === shareId);
+        const foundSetlist = allSetlists.find((s: Setlist) => s.id === shareId);
 
         if (foundSetlist) {
-          console.log('✅ Setlist encontrado:', foundSetlist.name);
+          console.log('✅ Setlist encontrado no localStorage:', foundSetlist.name);
           
-          // Converter strings de data para objetos Date se necessário
           const setlistData = {
             ...foundSetlist,
             createdAt: new Date(foundSetlist.createdAt),
             updatedAt: new Date(foundSetlist.updatedAt),
-                             musics: foundSetlist.musics?.map((music: Music) => ({
+            musics: foundSetlist.musics?.map((music: Music) => ({
               ...music,
               createdAt: new Date(music.createdAt),
               updatedAt: new Date(music.updatedAt),
@@ -85,14 +106,55 @@ export default function SharedSetlistPage() {
           };
           
           setSetlist(setlistData);
-          setExpiresAt(null); // URLs permanentes, sem expiração
-        } else {
-          console.log('❌ Setlist não encontrado no storage local');
-          setError('Setlist não encontrado. Pode ser que você precise acessar o desktop primeiro para sincronizar os dados.');
+          setExpiresAt(null);
+          return;
         }
+
+        // 2. SE NÃO ENCONTROU NO LOCAL: Buscar no Supabase
+        console.log('🔍 Não encontrado localmente, buscando no Supabase...');
+        
+        // Buscar setlist no banco
+        const { data: dbSetlist, error: setlistError } = await supabase
+          .from('setlists')
+          .select('*')
+          .eq('id', shareId)
+          .single();
+
+        if (setlistError) {
+          console.error('❌ Erro ao buscar setlist no banco:', setlistError);
+          setError('Setlist não encontrado. Verifique se o link está correto.');
+          return;
+        }
+
+        if (!dbSetlist) {
+          console.log('❌ Setlist não existe no banco');
+          setError('Setlist não encontrado. O link pode estar incorreto ou o setlist foi removido.');
+          return;
+        }
+
+        // Buscar músicas do setlist
+        const { data: dbMusics, error: musicsError } = await supabase
+          .from('musics')
+          .select('*')
+          .eq('setlist_id', shareId)
+          .order('position');
+
+        if (musicsError) {
+          console.error('❌ Erro ao buscar músicas:', musicsError);
+          setError('Erro ao carregar músicas do setlist.');
+          return;
+        }
+
+        // Converter para formato local
+        const setlistData = databaseToSetlist(dbSetlist, dbMusics || []);
+        
+        console.log('✅ Setlist carregado do Supabase:', setlistData.name);
+        setSetlist(setlistData);
+        setExpiresAt(null);
+
       } catch (err) {
         console.error('❌ Erro ao carregar setlist:', err);
-        setError('Erro ao carregar setlist do storage local');
+        setError('Erro ao carregar setlist. Tente novamente.');
       } finally {
         setLoading(false);
       }
