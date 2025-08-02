@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Sistema simplificado: usar o ID do setlist diretamente como URL
 // URLs permanentes baseadas no próprio ID do setlist - nunca expiram
+// Force deploy - v2.0
 
 export async function POST(request: NextRequest) {
   try {
