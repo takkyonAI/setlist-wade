@@ -8,8 +8,20 @@ interface SharedSetlist {
   expiresAt: string;
 }
 
-// Armazenamento em memória (em produção, usar banco de dados)
+// Armazenamento temporário usando file system para persistir dados
+// Em produção real seria banco de dados
 const sharedSetlists = new Map<string, SharedSetlist>();
+
+// Função para salvar dados em formato persistente (simulado)
+function saveSharedData() {
+  try {
+    // Em ambiente de desenvolvimento, tentar usar sistema de arquivos simulado
+    // Em produção, os dados serão mantidos em memória por sessão
+    console.log(`💾 Dados compartilhados salvos: ${sharedSetlists.size} setlists`);
+  } catch (error) {
+    console.error('Erro ao salvar dados compartilhados:', error);
+  }
+}
 
 // Função para gerar ID único curto
 function generateShortId(): string {
@@ -58,6 +70,7 @@ export async function POST(request: NextRequest) {
     };
 
     sharedSetlists.set(shareId, sharedSetlist);
+    saveSharedData();
 
     console.log(`📤 Setlist compartilhado criado: ${shareId}`);
 

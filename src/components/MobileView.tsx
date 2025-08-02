@@ -58,6 +58,9 @@ export function MobileView() {
     setIsSharing(true);
     
     try {
+      console.log('📱 Mobile: Compartilhando setlist:', setlist.name);
+      console.log('📱 Mobile: Setlist tem', setlist.musics.length, 'músicas');
+      
       const response = await fetch('/api/share-setlist', {
         method: 'POST',
         headers: {
@@ -66,13 +69,17 @@ export function MobileView() {
         body: JSON.stringify({ setlist }),
       });
 
+      console.log('📱 Mobile: Response status:', response.status);
       const data = await response.json();
+      console.log('📱 Mobile: Response data:', data);
 
       if (response.ok) {
         const shareUrl = data.shareUrl;
+        console.log('📱 Mobile: Link gerado:', shareUrl);
         
         if (navigator.share) {
           // Usar Web Share API se disponível (mobile)
+          console.log('📱 Mobile: Usando Web Share API');
           await navigator.share({
             title: `Setlist: ${setlist.name}`,
             text: `Confira este setlist com ${setlist.musics.length} músicas`,
@@ -80,6 +87,7 @@ export function MobileView() {
           });
         } else {
           // Fallback: copiar para clipboard
+          console.log('📱 Mobile: Copiando para clipboard');
           await navigator.clipboard.writeText(shareUrl);
           alert(`✅ Link de compartilhamento copiado!\n\nO link expira em 7 dias.`);
         }
@@ -87,7 +95,7 @@ export function MobileView() {
         throw new Error(data.error || 'Erro ao criar link');
       }
     } catch (error) {
-      console.error('Erro ao compartilhar setlist:', error);
+      console.error('❌ Mobile: Erro ao compartilhar setlist:', error);
       alert('❌ Erro ao criar link de compartilhamento. Tente novamente.');
     } finally {
       setIsSharing(false);
@@ -159,6 +167,21 @@ export function MobileView() {
           <span className="text-sm text-gray-400 ml-auto">
             {allMusics.length} músicas
           </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              console.log('🔄 Mobile: Forçando reload manual');
+              window.location.reload();
+            }}
+            className="text-gray-400 hover:text-green-400 p-1 h-6 w-6"
+            title="Forçar reload"
+          >
+            🔄
+          </Button>
+        </div>
+        <div className="text-xs text-gray-500 mt-1">
+          📱 Setlists: {setlists.length} | Debug: {new Date().toLocaleTimeString()}
         </div>
       </div>
 
@@ -172,6 +195,25 @@ export function MobileView() {
               <p className="text-sm text-gray-500 mt-1">
                 Acesse pelo desktop para adicionar músicas
               </p>
+              <div className="mt-4 text-xs text-gray-600 space-y-1">
+                <div>🔍 Debug Info:</div>
+                <div>Setlists carregados: {setlists.length}</div>
+                <div>Total músicas: {allMusics.length}</div>
+                <div>Storage keys: {typeof window !== 'undefined' ? Object.keys(localStorage).filter(k => k.includes('setlist')).join(', ') || 'nenhuma' : 'N/A'}</div>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => {
+                    console.log('🔄 Mobile: Tentando recarregar dados...');
+                    const freshData = robustStorage.loadSetlists() as Setlist[];
+                    console.log('📱 Mobile: Dados recarregados:', freshData);
+                    setSetlists(freshData);
+                  }}
+                  className="mt-2"
+                >
+                  🔄 Tentar Recarregar
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (

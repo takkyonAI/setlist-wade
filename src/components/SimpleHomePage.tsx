@@ -642,6 +642,8 @@ function SimpleSetlistEditor({ setlist: initialSetlist, onBack }: SimpleSetlistE
   const handleShareSetlist = async () => {
     setIsSharing(true);
     try {
+      console.log('🚀 Iniciando compartilhamento do setlist:', setlist.name);
+      
       const response = await fetch('/api/share-setlist', {
         method: 'POST',
         headers: {
@@ -650,13 +652,17 @@ function SimpleSetlistEditor({ setlist: initialSetlist, onBack }: SimpleSetlistE
         body: JSON.stringify({ setlist }),
       });
 
+      console.log('📡 Response status:', response.status);
       const data = await response.json();
+      console.log('📦 Response data:', data);
 
       if (response.ok) {
         const shareUrl = data.shareUrl;
+        console.log('✅ Link gerado:', shareUrl);
         
         if (navigator.share) {
           // Usar Web Share API se disponível (mobile)
+          console.log('📱 Usando Web Share API');
           await navigator.share({
             title: `Setlist: ${setlist.name}`,
             text: `Confira este setlist com ${setlist.musics.length} músicas`,
@@ -664,6 +670,7 @@ function SimpleSetlistEditor({ setlist: initialSetlist, onBack }: SimpleSetlistE
           });
         } else {
           // Fallback: copiar para clipboard
+          console.log('📋 Copiando para clipboard');
           await navigator.clipboard.writeText(shareUrl);
           alert(`✅ Link de compartilhamento copiado!\n\nO link expira em 7 dias.\n\n${shareUrl}`);
         }
@@ -671,7 +678,7 @@ function SimpleSetlistEditor({ setlist: initialSetlist, onBack }: SimpleSetlistE
         throw new Error(data.error || 'Erro ao criar link');
       }
     } catch (error) {
-      console.error('Erro ao compartilhar setlist:', error);
+      console.error('❌ Erro ao compartilhar setlist:', error);
       alert('❌ Erro ao criar link de compartilhamento. Tente novamente.');
     } finally {
       setIsSharing(false);
