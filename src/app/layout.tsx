@@ -17,8 +17,14 @@ export const metadata: Metadata = {
   description: "Aplicação moderna para organização de setlists com letras e cifras de músicas",
   keywords: ["setlist", "música", "cifra", "letra", "banda", "performance"],
   authors: [{ name: "Wade" }],
-  viewport: "width=device-width, initial-scale=1",
 };
+
+export function generateViewport() {
+  return {
+    width: 'device-width',
+    initialScale: 1,
+  };
+}
 
 export default function RootLayout({
   children,
