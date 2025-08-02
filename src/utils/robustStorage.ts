@@ -26,13 +26,16 @@ class RobustStorage {
 
   // 💾 SALVAR COM BACKUP MÚLTIPLO
   async saveSetlists(setlists: unknown[]): Promise<void> {
+    // Verificar se estamos no cliente (browser)
+    if (typeof window === 'undefined') return;
+    
     try {
       const timestamp = new Date().toISOString();
       const backupData: BackupData = {
         setlists,
         timestamp,
         version: '1.0',
-        userAgent: navigator.userAgent
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server'
       };
 
       // 1. Salvar no localStorage principal
@@ -62,6 +65,12 @@ class RobustStorage {
 
   // 📖 CARREGAR COM RECUPERAÇÃO AUTOMÁTICA
   loadSetlists(): unknown[] {
+    // Verificar se estamos no cliente (browser)
+    if (typeof window === 'undefined') {
+      console.log('⚠️ localStorage não disponível no servidor');
+      return [];
+    }
+    
     try {
       console.log('📖 Carregando setlists...');
 
@@ -306,6 +315,17 @@ class RobustStorage {
     history: number,
     saveCount: number 
   } {
+    // Verificar se estamos no cliente
+    if (typeof window === 'undefined') {
+      return {
+        main: false,
+        backup: false,
+        session: false,
+        history: 0,
+        saveCount: 0
+      };
+    }
+    
     return {
       main: !!localStorage.getItem('setlists'),
       backup: !!localStorage.getItem(this.backupKey),
