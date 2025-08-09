@@ -14,6 +14,8 @@ import { MobileView } from '@/components/MobileView';
 import { SyncButton } from '@/components/SyncButton';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { robustStorage } from '@/utils/robustStorage';
+import { generateUUID } from '@/utils/generateId';
+import { useSetlistTransfer } from '@/hooks/useSetlistTransfer';
 
 // Tipos definidos localmente para teste
 interface Chord {
@@ -73,7 +75,7 @@ export function SimpleHomePage() {
     if (!formData.name.trim()) return;
 
     const newSetlist: Setlist = {
-      id: Date.now().toString(),
+      id: generateUUID(),
       name: formData.name,
       description: formData.description,
       musics: [],
@@ -554,6 +556,54 @@ function SimpleSetlistEditor({ setlist: initialSetlist, onBack }: SimpleSetlistE
   const [editingTitleValue, setEditingTitleValue] = useState('');
   const [viewMode, setViewMode] = useState<'edit' | 'view'>('view');
   const [isSharing, setIsSharing] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedMusicIds, setSelectedMusicIds] = useState<Set<string>>(new Set());
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [sourceSetlistId, setSourceSetlistId] = useState<string>('');
+  const [selectedSourceMusicIds, setSelectedSourceMusicIds] = useState<Set<string>>(new Set());
+  const { copySelectedToNewSetlist, getAvailableSourceSetlists, importFromSetlist } = useSetlistTransfer();
+
+  const toggleSelectMusic = (musicId: string) => {
+    setSelectedMusicIds(prev => {
+      const next = new Set(prev);
+      if (next.has(musicId)) next.delete(musicId); else next.add(musicId);
+      return next;
+    });
+  };
+
+  const cloneMusicWithNewId = (music: Music): Music => {
+    return {
+      ...music,
+      id: generateUUID(),
+      // Clonar estruturas internas para evitar referências compartilhadas
+      lyrics: music.lyrics.map(line => ({
+        ...line,
+        chords: line.chords.map(ch => ({ ...ch }))
+      })),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  };
+
+  const handleCopySelectedToNewSetlist = () => {
+    if (selectedMusicIds.size === 0) return;
+    const newSetlist = copySelectedToNewSetlist(setlist, selectedMusicIds);
+    alert(`✅ Criado "${newSetlist.name}" com ${newSetlist.musics.length} músicas`);
+    setSelectionMode(false);
+    setSelectedMusicIds(new Set());
+  };
+
+  const availableSourceSetlists = () => getAvailableSourceSetlists(setlist.id);
+
+  const handleAddFromOtherSetlist = () => {
+    if (!sourceSetlistId || selectedSourceMusicIds.size === 0) return;
+    const updatedSetlist = importFromSetlist(setlist, sourceSetlistId, selectedSourceMusicIds);
+    setSetlist(updatedSetlist);
+
+    setIsImportDialogOpen(false);
+    setSelectedSourceMusicIds(new Set());
+    setSourceSetlistId('');
+  };
 
   const handleMusicAdded = (music: Music) => {
     const updatedSetlist = {
@@ -771,6 +821,34 @@ function SimpleSetlistEditor({ setlist: initialSetlist, onBack }: SimpleSetlistE
               <FileDown className="h-4 w-4 mr-2" />
               Exportar PDF
             </Button>
+            <Button
+              variant={selectionMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setSelectionMode(!selectionMode);
+                if (selectionMode) setSelectedMusicIds(new Set());
+              }}
+              title="Selecionar músicas deste setlist"
+            >
+              {selectionMode ? 'Selecionando...' : 'Selecionar músicas'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={selectedMusicIds.size === 0}
+              onClick={handleCopySelectedToNewSetlist}
+              title="Copiar selecionadas para um novo setlist"
+            >
+              Copiar p/ novo setlist
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsImportDialogOpen(true)}
+              title="Adicionar músicas de outro setlist"
+            >
+              Importar de outro setlist
+            </Button>
           </div>
         </motion.div>
 
@@ -859,6 +937,15 @@ function SimpleSetlistEditor({ setlist: initialSetlist, onBack }: SimpleSetlistE
                       transition={{ duration: 0.2, delay: index * 0.05 }}
                       className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors group"
                     >
+                      {selectionMode && (
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4"
+                          checked={selectedMusicIds.has(music.id)}
+                          onChange={() => toggleSelectMusic(music.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      )}
                       <div style={{ 
                         backgroundColor: 'oklch(0.8 0.25 127)',
                         color: 'oklch(0.09 0 0)'
@@ -948,6 +1035,61 @@ function SimpleSetlistEditor({ setlist: initialSetlist, onBack }: SimpleSetlistE
             </Card>
           )}
         </motion.div>
+
+        {/* Dialog: Importar de outro setlist */}
+        <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Importar músicas de outro setlist</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Escolha o setlist de origem</Label>
+                <select
+                  className="mt-1 w-full border rounded-md p-2 bg-background"
+                  value={sourceSetlistId}
+                  onChange={(e) => {
+                    setSourceSetlistId(e.target.value);
+                    setSelectedSourceMusicIds(new Set());
+                  }}
+                >
+                  <option value="">Selecione...</option>
+                  {availableSourceSetlists().map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.musics.length})</option>
+                  ))}
+                </select>
+              </div>
+              {sourceSetlistId && (
+                <div className="max-h-72 overflow-auto border rounded-md p-2 space-y-2">
+                  {(availableSourceSetlists().find(s => s.id === sourceSetlistId)?.musics || []).map(m => (
+                    <label key={m.id} className="flex items-center gap-2 p-2 hover:bg-muted/50 rounded">
+                      <input
+                        type="checkbox"
+                        checked={selectedSourceMusicIds.has(m.id)}
+                        onChange={() => setSelectedSourceMusicIds(prev => {
+                          const next = new Set(prev);
+                          if (next.has(m.id)) next.delete(m.id); else next.add(m.id);
+                          return next;
+                        })}
+                      />
+                      <span className="font-medium">{m.title}</span>
+                      <span className="text-xs text-muted-foreground">{m.artist}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>Cancelar</Button>
+                <Button
+                  disabled={!sourceSetlistId || selectedSourceMusicIds.size === 0}
+                  onClick={handleAddFromOtherSetlist}
+                >
+                  Adicionar ao setlist atual
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
